@@ -4,22 +4,22 @@ Dynatrace OneAgent is already installed to the VM and is monitoring 3 applicatio
 
 ## Step One - Create Tagging Rule in Dynatrace UI
 
-First we will create a tag that identifies the owners of specific process groups.
+First we will create a tag that identifies the regions of specific process groups.
 
 1. On the left hand navigation panel select `settings`
 2. Navigate to Tags -> Automatically applied tags
 3. Select `Create Tag`
-4. Tag name = `Owner`
-5. Optional Tag value = `{ProcessGroup:Environment:owner}`
+4. Tag name = `Region`
+5. Optional Tag value = `{ProcessGroup:AmazonRegion}`
 6. Rule applies to `Process Groups`
-7. Our condition will be `owner (environment) - Exists`
+7. Our condition will be `AMI ID - Exists`
 8. Check the box `Apply to all services provided by the process groups`
 9. Click `Create Tag Rule`
 10. Click `Save Changes`
-![Owner Tag Config](Resources/TagRule-UI.png)
 
-You can now filter Process Groups by tag `Owner`
-![Owner PG](Resources/Owner-PG.png)
+
+![Region Tag Config](Resources/TagRule-UI.png)
+
 
 ## Step Two - Review Monaco Project structure
 
@@ -28,18 +28,18 @@ We will review the monaco Project structure and will use your IDE or text editor
 2. Open and edit the `environments.yaml` file
    1. Environments are defined in the environments.yaml consisting of the environment url and the name of the environment variable to use for the API token. Multiple environments can be specified. Remove all content in `environments.yaml` and copy the block below and paste into the empty file. 
    2. ```
-      perform:
-        - name: "perform"
+      three-uk:
+        - name: "three-uk"
         - env-url: "YOUR_TENANT_URL_GOES_HERE"
         - env-token-name: "DT_API_TOKEN"
       ```
    3. For security reasons you should not place your environment token directly in a file.
    4. Update the env-url value to your Dynatrace Tenant address (ensure there is no trailing `/` on the end of the URL)
    5. Save the changes
-3. Return to the `projects` folder. Here you'll find a folder called `perform` (referenced in our `environments.yaml`) that contains another folder called `auto-tag` with two files `auto-tag.json` and `auto-tag.yaml`. 
+3. Return to the `projects` folder. Here you'll find a folder called `three-uk` (referenced in our `environments.yaml`) that contains another folder called `auto-tag` with two files `auto-tag.json` and `auto-tag.yaml`. 
    1. Both files contain only placeholders for the repository. We'll need to update them.
    2. The `.json` file is a template used for our API payload we plan to send for tagging. 
-   3. The `.yaml` file is used for the configuration we want to populate our `.json` with. The .yaml file can contain multiple configurations that can build different tag names and rules as monaco will iterate through each config and apply it to the template. In this scenario we're simply applying a single automatic tagging rule called 'Owner'.
+   3. The `.yaml` file is used for the configuration we want to populate our `.json` with. The .yaml file can contain multiple configurations that can build different tag names and rules as monaco will iterate through each config and apply it to the template. In this scenario we're simply applying a single automatic tagging rule called 'Region'.
 
 ## Step Three - Build the Monaco JSON from the Dynatrace API
 A great way to start building your monaco project is based off existing Dynatrace configuration. Even if you're starting with a fresh Dynatrace environment it may be worth creating a sample configuration in the UI first. This way we'll use the Dynatrace API to extract the properties of the configuration we'd like to use in monaco. From there you can use your configuration yaml file to add additional configuration.
@@ -54,12 +54,12 @@ A great way to start building your monaco project is based off existing Dynatrac
 
     ![Auto-tagendpoints](Resources/autotagendpoints.png)
 
-Next we need to get the Tag ID of `Owner` we manually created earlier.
+Next we need to get the Tag ID of `Region` we manually created earlier.
 
 1. click the `GET` for `/autoTags`
 2. click try it out
 3. click excute
-4. Scoll down to the response body. Copy the id of the `Owner` tag.
+4. Scoll down to the response body. Copy the id of the `Region` tag.
 
     ![Tagid](Resources/TagID.png)
 
@@ -75,29 +75,25 @@ Next we'll use the `GET` for `/autoTags/{id}` endpoint
     ![Tagconfigjson](Resources/Tagconfigjson.png)
 
 7. Copy the entire Response body to your clipboard.
-8. Open the file `exercises/1_exercise-one/projects/perform/auto-tag/auto-tag.json` with a text editor.
+8. Open the file `exercises/1_exercise-one/projects/three-uk/auto-tag/auto-tag.json` with a text editor.
 9. Remove the placeholder and paste the copied response body from the Dynatrace API output.
 10. Once the JSON is pasted into the file, remove lines **2-8**. Lines 2-8 are identifiers of the existing configuration that are not accepted when creating a new configuration in the next step. The desired file contents can also be copied from these instructions below.
     ```json
     {
-      "name": "Owner",
+      "name": "Region",
       "rules": [
         {
           "type": "PROCESS_GROUP",
           "enabled": true,
-          "valueFormat": "{ProcessGroup:Environment:owner}",
+          "valueFormat": "{ProcessGroup:AmazonRegion}",
           "propagationTypes": [
             "PROCESS_GROUP_TO_SERVICE"
           ],
           "conditions": [
             {
               "key": {
-                "attribute": "PROCESS_GROUP_CUSTOM_METADATA",
-                "dynamicKey": {
-                  "source": "ENVIRONMENT",
-                  "key": "owner"
-                },
-                "type": "PROCESS_CUSTOM_METADATA_KEY"
+                "attribute": "EC2_INSTANCE_AMI_ID",
+                "type": "STATIC"
               },
               "comparisonInfo": {
                 "type": "STRING",
@@ -117,7 +113,7 @@ Next we'll use the `GET` for `/autoTags/{id}` endpoint
 
 ## Step Four - Build the Config YAML
 
-1. Navigate to **1_exercise-one** > **projects** > **perform** > **auto-tag**
+1. Navigate to **1_exercise-one** > **projects** > **three-uk** > **auto-tag**
 2. open the **auto-tag.yaml** and edit the file
 3. Remove the placeholder
 4. Copy the contents below and paste into the YAML file.
@@ -126,22 +122,22 @@ Next we'll use the `GET` for `/autoTags/{id}` endpoint
 
     ```yaml
     config:
-        - tag-owner: "auto-tag.json"
+        - tag-region: "auto-tag.json"
       
-    tag-owner:
-        - name: "Owner"
+    tag-region:
+        - name: "Region"
     ```
 5. Save your changes
 
-The Config YAML tells monaco which configuration JSON to apply. You can supply addtional configuration names with seperate JSON files. Each config name has a set of properties to apply to the JSON template. In our case we're telling Monaco to use the auto-tag.json file for our tag-owner configuration. Then the tag-owner configuration has a value called name.
+The Config YAML tells monaco which configuration JSON to apply. You can supply addtional configuration names with seperate JSON files. Each config name has a set of properties to apply to the JSON template. In our case we're telling Monaco to use the auto-tag.json file for our tag-region configuration. Then the tag-region configuration has a value called name.
 
 Next we will update our auto-tag.json file to be more dynamic and use environment variables to populate the tag name. This way we could structure our config Yaml to iterate through multiple tag names and configurations. 
 
 
 ## Step Five - Modify Auto-Tag.json
 
-1. Open and edit the auto-tag.json file under **exercises** > **1_exercise-one** > **projects** > **perform** > **auto-tag**
-2. On line 2 replace `Owner` with the snippit below. 
+1. Open and edit the auto-tag.json file under **exercises** > **1_exercise-one** > **projects** > **three-uk** > **auto-tag**
+2. On line 2 replace `Region` with the snippit below. 
 
     ```json
     {{ .name }}
@@ -151,24 +147,20 @@ Next we will update our auto-tag.json file to be more dynamic and use environmen
     Expected JSON file contents:
     ```json
     {
-      "name": "{{ .name }}",
+      "name": {{ .name }},
       "rules": [
         {
           "type": "PROCESS_GROUP",
           "enabled": true,
-          "valueFormat": "{ProcessGroup:Environment:owner}",
+          "valueFormat": "{ProcessGroup:AmazonRegion}",
           "propagationTypes": [
             "PROCESS_GROUP_TO_SERVICE"
           ],
           "conditions": [
             {
               "key": {
-                "attribute": "PROCESS_GROUP_CUSTOM_METADATA",
-                "dynamicKey": {
-                  "source": "ENVIRONMENT",
-                  "key": "owner"
-                },
-                "type": "PROCESS_CUSTOM_METADATA_KEY"
+                "attribute": "EC2_INSTANCE_AMI_ID",
+                "type": "STATIC"
               },
               "comparisonInfo": {
                 "type": "STRING",
@@ -180,7 +172,7 @@ Next we will update our auto-tag.json file to be more dynamic and use environmen
             }
           ]
         }
-      ]
+      ],
     }
     ```
 
@@ -191,7 +183,7 @@ Next we will update our auto-tag.json file to be more dynamic and use environmen
 Now that our project files are defined for a tagging rule we'll need to manually delete our existing tag rule in the Dynatrace UI. Then we'll clone our Gitea repo to our VM and exectute monaco from our project structure to re-apply our tag.
 
 1. Open the Dynatrace UI and navigate to `settings`
-2. Open tags -> automatically applied tags and delete the tag called `Owner`
+2. Open tags -> automatically applied tags and delete the tag called `Region`
 3. Save changes
 4. On your terminal, cd into the `monaco-hot` directory
     ```bash
@@ -227,9 +219,9 @@ Now that our project files are defined for a tagging rule we'll need to manually
     ```bash
     $ monaco -e environments.yaml
     ```
-10.  Check your Dynatrace environment for the `Owner` tag to be recreated.
+10.  Check your Dynatrace environment for the `Region` tag to be recreated.
 
-      ![Owner Tag](Resources/Ownertagui.png)
+      ![Region Tag](Resources/Regiontagui.png)
 
 # ***Congratulations on completing Exercise-one!***
 
