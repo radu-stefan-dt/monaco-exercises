@@ -16,6 +16,8 @@ First we will create a tag that identifies the regions of specific process group
 8. Check the box `Apply to all services provided by the process groups`
 9. Click `Create Tag Rule`
 10. Click `Save Changes`
+
+
 ![Region Tag Config](Resources/TagRule-UI.png)
 
 
